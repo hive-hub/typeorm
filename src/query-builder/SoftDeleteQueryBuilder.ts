@@ -1,32 +1,37 @@
-import {QueryBuilder} from "./QueryBuilder";
-import {ObjectLiteral} from "../common/ObjectLiteral";
-import {EntityTarget} from "../common/EntityTarget";
-import {Connection} from "../connection/Connection";
-import {QueryRunner} from "../query-runner/QueryRunner";
-import {SqlServerDriver} from "../driver/sqlserver/SqlServerDriver";
-import {WhereExpressionBuilder} from "./WhereExpressionBuilder";
-import {Brackets} from "./Brackets";
-import {UpdateResult} from "./result/UpdateResult";
-import {ReturningStatementNotSupportedError} from "../error/ReturningStatementNotSupportedError";
-import {ReturningResultsEntityUpdator} from "./ReturningResultsEntityUpdator";
-import {MysqlDriver} from "../driver/mysql/MysqlDriver";
-import {OrderByCondition} from "../find-options/OrderByCondition";
-import {LimitOnUpdateNotSupportedError} from "../error/LimitOnUpdateNotSupportedError";
-import {MissingDeleteDateColumnError} from "../error/MissingDeleteDateColumnError";
-import {UpdateValuesMissingError} from "../error/UpdateValuesMissingError";
-import {EntitySchema} from "../entity-schema/EntitySchema";
-import {TypeORMError} from "../error";
+import { QueryBuilder } from "./QueryBuilder";
+import { ObjectLiteral } from "../common/ObjectLiteral";
+import { EntityTarget } from "../common/EntityTarget";
+import { Connection } from "../connection/Connection";
+import { QueryRunner } from "../query-runner/QueryRunner";
+import { SqlServerDriver } from "../driver/sqlserver/SqlServerDriver";
+import { WhereExpressionBuilder } from "./WhereExpressionBuilder";
+import { Brackets } from "./Brackets";
+import { UpdateResult } from "./result/UpdateResult";
+import { ReturningStatementNotSupportedError } from "../error/ReturningStatementNotSupportedError";
+import { ReturningResultsEntityUpdator } from "./ReturningResultsEntityUpdator";
+import { MysqlDriver } from "../driver/mysql/MysqlDriver";
+import { OrderByCondition } from "../find-options/OrderByCondition";
+import { LimitOnUpdateNotSupportedError } from "../error/LimitOnUpdateNotSupportedError";
+import { MissingDeleteDateColumnError } from "../error/MissingDeleteDateColumnError";
+import { UpdateValuesMissingError } from "../error/UpdateValuesMissingError";
+import { EntitySchema } from "../entity-schema/EntitySchema";
+import { TypeORMError } from "../error";
 
 /**
  * Allows to build complex sql queries in a fashion way and execute those queries.
  */
-export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements WhereExpressionBuilder {
-
+export class SoftDeleteQueryBuilder<Entity extends ObjectLiteral>
+    extends QueryBuilder<Entity>
+    implements WhereExpressionBuilder
+{
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
 
-    constructor(connectionOrQueryBuilder: Connection|QueryBuilder<any>, queryRunner?: QueryRunner) {
+    constructor(
+        connectionOrQueryBuilder: Connection | QueryBuilder<any>,
+        queryRunner?: QueryRunner
+    ) {
         super(connectionOrQueryBuilder as any, queryRunner);
         this.expressionMap.aliasNamePrefixingEnabled = false;
     }
@@ -53,27 +58,45 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
         let transactionStartedByUs: boolean = false;
 
         try {
-
             // start transaction if it was enabled
-            if (this.expressionMap.useTransaction === true && queryRunner.isTransactionActive === false) {
+            if (
+                this.expressionMap.useTransaction === true &&
+                queryRunner.isTransactionActive === false
+            ) {
                 await queryRunner.startTransaction();
                 transactionStartedByUs = true;
             }
 
             // call before soft remove and recover methods in listeners and subscribers
-            if (this.expressionMap.callListeners === true && this.expressionMap.mainAlias!.hasMetadata) {
+            if (
+                this.expressionMap.callListeners === true &&
+                this.expressionMap.mainAlias!.hasMetadata
+            ) {
                 if (this.expressionMap.queryType === "soft-delete")
-                    await queryRunner.broadcaster.broadcast("BeforeSoftRemove", this.expressionMap.mainAlias!.metadata);
+                    await queryRunner.broadcaster.broadcast(
+                        "BeforeSoftRemove",
+                        this.expressionMap.mainAlias!.metadata
+                    );
                 else if (this.expressionMap.queryType === "restore")
-                    await queryRunner.broadcaster.broadcast("BeforeRecover", this.expressionMap.mainAlias!.metadata);
+                    await queryRunner.broadcaster.broadcast(
+                        "BeforeRecover",
+                        this.expressionMap.mainAlias!.metadata
+                    );
             }
 
             // if update entity mode is enabled we may need extra columns for the returning statement
-            const returningResultsEntityUpdator = new ReturningResultsEntityUpdator(queryRunner, this.expressionMap);
-            if (this.expressionMap.updateEntity === true &&
+            const returningResultsEntityUpdator =
+                new ReturningResultsEntityUpdator(
+                    queryRunner,
+                    this.expressionMap
+                );
+            if (
+                this.expressionMap.updateEntity === true &&
                 this.expressionMap.mainAlias!.hasMetadata &&
-                this.expressionMap.whereEntities.length > 0) {
-                this.expressionMap.extraReturningColumns = returningResultsEntityUpdator.getSoftDeletionReturningColumns();
+                this.expressionMap.whereEntities.length > 0
+            ) {
+                this.expressionMap.extraReturningColumns =
+                    returningResultsEntityUpdator.getSoftDeletionReturningColumns();
             }
 
             // execute update query
@@ -83,38 +106,49 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
             const updateResult = UpdateResult.from(queryResult);
 
             // if we are updating entities and entity updation is enabled we must update some of entity columns (like version, update date, etc.)
-            if (this.expressionMap.updateEntity === true &&
+            if (
+                this.expressionMap.updateEntity === true &&
                 this.expressionMap.mainAlias!.hasMetadata &&
-                this.expressionMap.whereEntities.length > 0) {
-                await returningResultsEntityUpdator.update(updateResult, this.expressionMap.whereEntities);
+                this.expressionMap.whereEntities.length > 0
+            ) {
+                await returningResultsEntityUpdator.update(
+                    updateResult,
+                    this.expressionMap.whereEntities
+                );
             }
 
             // call after soft remove and recover methods in listeners and subscribers
-            if (this.expressionMap.callListeners === true && this.expressionMap.mainAlias!.hasMetadata) {
+            if (
+                this.expressionMap.callListeners === true &&
+                this.expressionMap.mainAlias!.hasMetadata
+            ) {
                 if (this.expressionMap.queryType === "soft-delete")
-                    await queryRunner.broadcaster.broadcast("AfterSoftRemove", this.expressionMap.mainAlias!.metadata);
+                    await queryRunner.broadcaster.broadcast(
+                        "AfterSoftRemove",
+                        this.expressionMap.mainAlias!.metadata
+                    );
                 else if (this.expressionMap.queryType === "restore")
-                    await queryRunner.broadcaster.broadcast("AfterRecover", this.expressionMap.mainAlias!.metadata);
+                    await queryRunner.broadcaster.broadcast(
+                        "AfterRecover",
+                        this.expressionMap.mainAlias!.metadata
+                    );
             }
 
             // close transaction if we started it
-            if (transactionStartedByUs)
-                await queryRunner.commitTransaction();
+            if (transactionStartedByUs) await queryRunner.commitTransaction();
 
             return updateResult;
-
         } catch (error) {
-
             // rollback transaction if we started it
             if (transactionStartedByUs) {
                 try {
                     await queryRunner.rollbackTransaction();
-                } catch (rollbackError) { }
+                } catch (rollbackError) {}
             }
             throw error;
-
         } finally {
-            if (queryRunner !== this.queryRunner) { // means we created our own query runner
+            if (queryRunner !== this.queryRunner) {
+                // means we created our own query runner
                 await queryRunner.release();
             }
         }
@@ -128,11 +162,17 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * Specifies FROM which entity's table select/update/delete/soft-delete will be executed.
      * Also sets a main string alias of the selection data.
      */
-    from<T>(entityTarget: EntityTarget<T>, aliasName?: string): SoftDeleteQueryBuilder<T> {
-        entityTarget = entityTarget instanceof EntitySchema ? entityTarget.options.name : entityTarget;
+    from<T extends ObjectLiteral>(
+        entityTarget: EntityTarget<T>,
+        aliasName?: string
+    ): SoftDeleteQueryBuilder<T> {
+        entityTarget =
+            entityTarget instanceof EntitySchema
+                ? entityTarget.options.name
+                : entityTarget;
         const mainAlias = this.createFromAlias(entityTarget, aliasName);
         this.expressionMap.setMainAlias(mainAlias);
-        return (this as any) as SoftDeleteQueryBuilder<T>;
+        return this as any as SoftDeleteQueryBuilder<T>;
     }
 
     /**
@@ -141,13 +181,22 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * calling this function will override previously set WHERE conditions.
      * Additionally you can add parameters used in where expression.
      */
-    where(where: string|((qb: this) => string)|Brackets|ObjectLiteral|ObjectLiteral[], parameters?: ObjectLiteral): this {
+    where(
+        where:
+            | string
+            | ((qb: this) => string)
+            | Brackets
+            | ObjectLiteral
+            | ObjectLiteral[],
+        parameters?: ObjectLiteral
+    ): this {
         this.expressionMap.wheres = []; // don't move this block below since computeWhereParameter can add where expressions
         const condition = this.getWhereCondition(where);
         if (condition)
-            this.expressionMap.wheres = [{ type: "simple", condition: condition }];
-        if (parameters)
-            this.setParameters(parameters);
+            this.expressionMap.wheres = [
+                { type: "simple", condition: condition },
+            ];
+        if (parameters) this.setParameters(parameters);
         return this;
     }
 
@@ -155,8 +204,19 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * Adds new AND WHERE condition in the query builder.
      * Additionally you can add parameters used in where expression.
      */
-    andWhere(where: string|((qb: this) => string)|Brackets|ObjectLiteral|ObjectLiteral[], parameters?: ObjectLiteral): this {
-        this.expressionMap.wheres.push({ type: "and", condition: this.getWhereCondition(where) });
+    andWhere(
+        where:
+            | string
+            | ((qb: this) => string)
+            | Brackets
+            | ObjectLiteral
+            | ObjectLiteral[],
+        parameters?: ObjectLiteral
+    ): this {
+        this.expressionMap.wheres.push({
+            type: "and",
+            condition: this.getWhereCondition(where),
+        });
         if (parameters) this.setParameters(parameters);
         return this;
     }
@@ -165,8 +225,19 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * Adds new OR WHERE condition in the query builder.
      * Additionally you can add parameters used in where expression.
      */
-    orWhere(where: string|((qb: this) => string)|Brackets|ObjectLiteral|ObjectLiteral[], parameters?: ObjectLiteral): this {
-        this.expressionMap.wheres.push({ type: "or", condition: this.getWhereCondition(where) });
+    orWhere(
+        where:
+            | string
+            | ((qb: this) => string)
+            | Brackets
+            | ObjectLiteral
+            | ObjectLiteral[],
+        parameters?: ObjectLiteral
+    ): this {
+        this.expressionMap.wheres.push({
+            type: "or",
+            condition: this.getWhereCondition(where),
+        });
         if (parameters) this.setParameters(parameters);
         return this;
     }
@@ -174,21 +245,21 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
     /**
      * Adds new AND WHERE with conditions for the given ids.
      */
-    whereInIds(ids: any|any[]): this {
+    whereInIds(ids: any | any[]): this {
         return this.where(this.getWhereInIdsCondition(ids));
     }
 
     /**
      * Adds new AND WHERE with conditions for the given ids.
      */
-    andWhereInIds(ids: any|any[]): this {
+    andWhereInIds(ids: any | any[]): this {
         return this.andWhere(this.getWhereInIdsCondition(ids));
     }
 
     /**
      * Adds new OR WHERE with conditions for the given ids.
      */
-    orWhereInIds(ids: any|any[]): this {
+    orWhereInIds(ids: any | any[]): this {
         return this.orWhere(this.getWhereInIdsCondition(ids));
     }
     /**
@@ -206,12 +277,12 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
     /**
      * Optional returning/output clause.
      */
-    output(output: string|string[]): this;
+    output(output: string | string[]): this;
 
     /**
      * Optional returning/output clause.
      */
-    output(output: string|string[]): this {
+    output(output: string | string[]): this {
         return this.returning(output);
     }
 
@@ -230,13 +301,12 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
     /**
      * Optional returning/output clause.
      */
-    returning(returning: string|string[]): this;
+    returning(returning: string | string[]): this;
 
     /**
      * Optional returning/output clause.
      */
-    returning(returning: string|string[]): this {
-
+    returning(returning: string | string[]): this {
         // not all databases support returning/output cause
         if (!this.connection.driver.isReturningSqlSupported("update")) {
             throw new ReturningStatementNotSupportedError();
@@ -260,7 +330,11 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * If you had previously ORDER BY expression defined,
      * calling this function will override previously set ORDER BY conditions.
      */
-    orderBy(sort: string, order?: "ASC"|"DESC", nulls?: "NULLS FIRST"|"NULLS LAST"): this;
+    orderBy(
+        sort: string,
+        order?: "ASC" | "DESC",
+        nulls?: "NULLS FIRST" | "NULLS LAST"
+    ): this;
 
     /**
      * Sets ORDER BY condition in the query builder.
@@ -274,13 +348,19 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * If you had previously ORDER BY expression defined,
      * calling this function will override previously set ORDER BY conditions.
      */
-    orderBy(sort?: string|OrderByCondition, order: "ASC"|"DESC" = "ASC", nulls?: "NULLS FIRST"|"NULLS LAST"): this {
+    orderBy(
+        sort?: string | OrderByCondition,
+        order: "ASC" | "DESC" = "ASC",
+        nulls?: "NULLS FIRST" | "NULLS LAST"
+    ): this {
         if (sort) {
             if (sort instanceof Object) {
                 this.expressionMap.orderBys = sort as OrderByCondition;
             } else {
                 if (nulls) {
-                    this.expressionMap.orderBys = { [sort as string]: { order, nulls } };
+                    this.expressionMap.orderBys = {
+                        [sort as string]: { order, nulls },
+                    };
                 } else {
                     this.expressionMap.orderBys = { [sort as string]: order };
                 }
@@ -294,7 +374,11 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
     /**
      * Adds ORDER BY condition in the query builder.
      */
-    addOrderBy(sort: string, order: "ASC"|"DESC" = "ASC", nulls?: "NULLS FIRST"|"NULLS LAST"): this {
+    addOrderBy(
+        sort: string,
+        order: "ASC" | "DESC" = "ASC",
+        nulls?: "NULLS FIRST" | "NULLS LAST"
+    ): this {
         if (nulls) {
             this.expressionMap.orderBys[sort] = { order, nulls };
         } else {
@@ -316,17 +400,21 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * This may produce extra query or use RETURNING / OUTPUT statement (depend on database).
      * Enabled by default.
      */
-    whereEntity(entity: Entity|Entity[]): this {
+    whereEntity(entity: Entity | Entity[]): this {
         if (!this.expressionMap.mainAlias!.hasMetadata)
-            throw new TypeORMError(`.whereEntity method can only be used on queries which update real entity table.`);
+            throw new TypeORMError(
+                `.whereEntity method can only be used on queries which update real entity table.`
+            );
 
         this.expressionMap.wheres = [];
         const entities: Entity[] = Array.isArray(entity) ? entity : [entity];
-        entities.forEach(entity => {
-
-            const entityIdMap = this.expressionMap.mainAlias!.metadata.getEntityIdMap(entity);
+        entities.forEach((entity) => {
+            const entityIdMap =
+                this.expressionMap.mainAlias!.metadata.getEntityIdMap(entity);
             if (!entityIdMap)
-                throw new TypeORMError(`Provided entity does not have ids set, cannot perform operation.`);
+                throw new TypeORMError(
+                    `Provided entity does not have ids set, cannot perform operation.`
+                );
 
             this.orWhereInIds(entityIdMap);
         });
@@ -353,9 +441,13 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * Creates UPDATE express used to perform insert query.
      */
     protected createUpdateExpression() {
-        const metadata = this.expressionMap.mainAlias!.hasMetadata ? this.expressionMap.mainAlias!.metadata : undefined;
+        const metadata = this.expressionMap.mainAlias!.hasMetadata
+            ? this.expressionMap.mainAlias!.metadata
+            : undefined;
         if (!metadata)
-            throw new TypeORMError(`Cannot get entity metadata for the given alias "${this.expressionMap.mainAlias}"`);
+            throw new TypeORMError(
+                `Cannot get entity metadata for the given alias "${this.expressionMap.mainAlias}"`
+            );
         if (!metadata.deleteDateColumn) {
             throw new MissingDeleteDateColumnError(metadata);
         }
@@ -365,18 +457,34 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
 
         switch (this.expressionMap.queryType) {
             case "soft-delete":
-                updateColumnAndValues.push(this.escape(metadata.deleteDateColumn.databaseName) + " = CURRENT_TIMESTAMP");
+                updateColumnAndValues.push(
+                    this.escape(metadata.deleteDateColumn.databaseName) +
+                        " = CURRENT_TIMESTAMP"
+                );
                 break;
             case "restore":
-                updateColumnAndValues.push(this.escape(metadata.deleteDateColumn.databaseName) + " = NULL");
+                updateColumnAndValues.push(
+                    this.escape(metadata.deleteDateColumn.databaseName) +
+                        " = NULL"
+                );
                 break;
             default:
-                throw new TypeORMError(`The queryType must be "soft-delete" or "restore"`);
+                throw new TypeORMError(
+                    `The queryType must be "soft-delete" or "restore"`
+                );
         }
         if (metadata.versionColumn)
-            updateColumnAndValues.push(this.escape(metadata.versionColumn.databaseName) + " = " + this.escape(metadata.versionColumn.databaseName) + " + 1");
+            updateColumnAndValues.push(
+                this.escape(metadata.versionColumn.databaseName) +
+                    " = " +
+                    this.escape(metadata.versionColumn.databaseName) +
+                    " + 1"
+            );
         if (metadata.updateDateColumn)
-            updateColumnAndValues.push(this.escape(metadata.updateDateColumn.databaseName) + " = CURRENT_TIMESTAMP"); // todo: fix issue with CURRENT_TIMESTAMP(6) being used, can "DEFAULT" be used?!
+            updateColumnAndValues.push(
+                this.escape(metadata.updateDateColumn.databaseName) +
+                    " = CURRENT_TIMESTAMP"
+            ); // todo: fix issue with CURRENT_TIMESTAMP(6) being used, can "DEFAULT" be used?!
 
         if (updateColumnAndValues.length <= 0) {
             throw new UpdateValuesMissingError();
@@ -387,12 +495,22 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
         const returningExpression = this.createReturningExpression("update");
 
         if (returningExpression === "") {
-            return `UPDATE ${this.getTableName(this.getMainTableName())} SET ${updateColumnAndValues.join(", ")}${whereExpression}`; // todo: how do we replace aliases in where to nothing?
+            return `UPDATE ${this.getTableName(
+                this.getMainTableName()
+            )} SET ${updateColumnAndValues.join(", ")}${whereExpression}`; // todo: how do we replace aliases in where to nothing?
         }
         if (this.connection.driver instanceof SqlServerDriver) {
-            return `UPDATE ${this.getTableName(this.getMainTableName())} SET ${updateColumnAndValues.join(", ")} OUTPUT ${returningExpression}${whereExpression}`;
+            return `UPDATE ${this.getTableName(
+                this.getMainTableName()
+            )} SET ${updateColumnAndValues.join(
+                ", "
+            )} OUTPUT ${returningExpression}${whereExpression}`;
         }
-        return `UPDATE ${this.getTableName(this.getMainTableName())} SET ${updateColumnAndValues.join(", ")}${whereExpression} RETURNING ${returningExpression}`;
+        return `UPDATE ${this.getTableName(
+            this.getMainTableName()
+        )} SET ${updateColumnAndValues.join(
+            ", "
+        )}${whereExpression} RETURNING ${returningExpression}`;
     }
 
     /**
@@ -401,15 +519,28 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
     protected createOrderByExpression() {
         const orderBys = this.expressionMap.orderBys;
         if (Object.keys(orderBys).length > 0)
-            return " ORDER BY " + Object.keys(orderBys)
-                    .map(columnName => {
+            return (
+                " ORDER BY " +
+                Object.keys(orderBys)
+                    .map((columnName) => {
                         if (typeof orderBys[columnName] === "string") {
-                            return this.replacePropertyNames(columnName) + " " + orderBys[columnName];
+                            return (
+                                this.replacePropertyNames(columnName) +
+                                " " +
+                                orderBys[columnName]
+                            );
                         } else {
-                            return this.replacePropertyNames(columnName) + " " + (orderBys[columnName] as any).order + " " + (orderBys[columnName] as any).nulls;
+                            return (
+                                this.replacePropertyNames(columnName) +
+                                " " +
+                                (orderBys[columnName] as any).order +
+                                " " +
+                                (orderBys[columnName] as any).nulls
+                            );
                         }
                     })
-                    .join(", ");
+                    .join(", ")
+            );
 
         return "";
     }
@@ -418,7 +549,7 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
      * Creates "LIMIT" parts of SQL query.
      */
     protected createLimitExpression(): string {
-        let limit: number|undefined = this.expressionMap.limit;
+        let limit: number | undefined = this.expressionMap.limit;
 
         if (limit) {
             if (this.connection.driver instanceof MysqlDriver) {
@@ -430,5 +561,4 @@ export class SoftDeleteQueryBuilder<Entity> extends QueryBuilder<Entity> impleme
 
         return "";
     }
-
 }

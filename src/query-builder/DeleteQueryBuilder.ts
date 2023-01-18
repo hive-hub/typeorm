@@ -1,25 +1,30 @@
-import {QueryBuilder} from "./QueryBuilder";
-import {ObjectLiteral} from "../common/ObjectLiteral";
-import {EntityTarget} from "../common/EntityTarget";
-import {Connection} from "../connection/Connection";
-import {QueryRunner} from "../query-runner/QueryRunner";
-import {SqlServerDriver} from "../driver/sqlserver/SqlServerDriver";
-import {WhereExpressionBuilder} from "./WhereExpressionBuilder";
-import {Brackets} from "./Brackets";
-import {DeleteResult} from "./result/DeleteResult";
-import {ReturningStatementNotSupportedError} from "../error/ReturningStatementNotSupportedError";
-import {EntitySchema} from "../entity-schema/EntitySchema";
+import { QueryBuilder } from "./QueryBuilder";
+import { ObjectLiteral } from "../common/ObjectLiteral";
+import { EntityTarget } from "../common/EntityTarget";
+import { Connection } from "../connection/Connection";
+import { QueryRunner } from "../query-runner/QueryRunner";
+import { SqlServerDriver } from "../driver/sqlserver/SqlServerDriver";
+import { WhereExpressionBuilder } from "./WhereExpressionBuilder";
+import { Brackets } from "./Brackets";
+import { DeleteResult } from "./result/DeleteResult";
+import { ReturningStatementNotSupportedError } from "../error/ReturningStatementNotSupportedError";
+import { EntitySchema } from "../entity-schema/EntitySchema";
 
 /**
  * Allows to build complex sql queries in a fashion way and execute those queries.
  */
-export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements WhereExpressionBuilder {
-
+export class DeleteQueryBuilder<Entity extends ObjectLiteral>
+    extends QueryBuilder<Entity>
+    implements WhereExpressionBuilder
+{
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
 
-    constructor(connectionOrQueryBuilder: Connection|QueryBuilder<any>, queryRunner?: QueryRunner) {
+    constructor(
+        connectionOrQueryBuilder: Connection | QueryBuilder<any>,
+        queryRunner?: QueryRunner
+    ) {
         super(connectionOrQueryBuilder as any, queryRunner);
         this.expressionMap.aliasNamePrefixingEnabled = false;
     }
@@ -46,16 +51,24 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
         let transactionStartedByUs: boolean = false;
 
         try {
-
             // start transaction if it was enabled
-            if (this.expressionMap.useTransaction === true && queryRunner.isTransactionActive === false) {
+            if (
+                this.expressionMap.useTransaction === true &&
+                queryRunner.isTransactionActive === false
+            ) {
                 await queryRunner.startTransaction();
                 transactionStartedByUs = true;
             }
 
             // call before deletion methods in listeners and subscribers
-            if (this.expressionMap.callListeners === true && this.expressionMap.mainAlias!.hasMetadata) {
-                await queryRunner.broadcaster.broadcast("BeforeRemove", this.expressionMap.mainAlias!.metadata);
+            if (
+                this.expressionMap.callListeners === true &&
+                this.expressionMap.mainAlias!.hasMetadata
+            ) {
+                await queryRunner.broadcaster.broadcast(
+                    "BeforeRemove",
+                    this.expressionMap.mainAlias!.metadata
+                );
             }
 
             // execute query
@@ -63,28 +76,31 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
             const deleteResult = DeleteResult.from(queryResult);
 
             // call after deletion methods in listeners and subscribers
-            if (this.expressionMap.callListeners === true && this.expressionMap.mainAlias!.hasMetadata) {
-                await queryRunner.broadcaster.broadcast("AfterRemove", this.expressionMap.mainAlias!.metadata);
+            if (
+                this.expressionMap.callListeners === true &&
+                this.expressionMap.mainAlias!.hasMetadata
+            ) {
+                await queryRunner.broadcaster.broadcast(
+                    "AfterRemove",
+                    this.expressionMap.mainAlias!.metadata
+                );
             }
 
             // close transaction if we started it
-            if (transactionStartedByUs)
-                await queryRunner.commitTransaction();
+            if (transactionStartedByUs) await queryRunner.commitTransaction();
 
             return deleteResult;
-
         } catch (error) {
-
             // rollback transaction if we started it
             if (transactionStartedByUs) {
                 try {
                     await queryRunner.rollbackTransaction();
-                } catch (rollbackError) { }
+                } catch (rollbackError) {}
             }
             throw error;
-
         } finally {
-            if (queryRunner !== this.queryRunner) { // means we created our own query runner
+            if (queryRunner !== this.queryRunner) {
+                // means we created our own query runner
                 await queryRunner.release();
             }
         }
@@ -98,11 +114,17 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
      * Specifies FROM which entity's table select/update/delete will be executed.
      * Also sets a main string alias of the selection data.
      */
-    from<T>(entityTarget: EntityTarget<T>, aliasName?: string): DeleteQueryBuilder<T> {
-        entityTarget = entityTarget instanceof EntitySchema ? entityTarget.options.name : entityTarget;
+    from<T extends ObjectLiteral>(
+        entityTarget: EntityTarget<T>,
+        aliasName?: string
+    ): DeleteQueryBuilder<T> {
+        entityTarget =
+            entityTarget instanceof EntitySchema
+                ? entityTarget.options.name
+                : entityTarget;
         const mainAlias = this.createFromAlias(entityTarget, aliasName);
         this.expressionMap.setMainAlias(mainAlias);
-        return (this as any) as DeleteQueryBuilder<T>;
+        return this as any as DeleteQueryBuilder<T>;
     }
 
     /**
@@ -111,13 +133,22 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
      * calling this function will override previously set WHERE conditions.
      * Additionally you can add parameters used in where expression.
      */
-    where(where: Brackets|string|((qb: this) => string)|ObjectLiteral|ObjectLiteral[], parameters?: ObjectLiteral): this {
+    where(
+        where:
+            | Brackets
+            | string
+            | ((qb: this) => string)
+            | ObjectLiteral
+            | ObjectLiteral[],
+        parameters?: ObjectLiteral
+    ): this {
         this.expressionMap.wheres = []; // don't move this block below since computeWhereParameter can add where expressions
         const condition = this.getWhereCondition(where);
         if (condition)
-            this.expressionMap.wheres = [{ type: "simple", condition: condition }];
-        if (parameters)
-            this.setParameters(parameters);
+            this.expressionMap.wheres = [
+                { type: "simple", condition: condition },
+            ];
+        if (parameters) this.setParameters(parameters);
         return this;
     }
 
@@ -125,8 +156,19 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
      * Adds new AND WHERE condition in the query builder.
      * Additionally you can add parameters used in where expression.
      */
-    andWhere(where: Brackets|string|((qb: this) => string)|ObjectLiteral|ObjectLiteral[], parameters?: ObjectLiteral): this {
-        this.expressionMap.wheres.push({ type: "and", condition: this.getWhereCondition(where) });
+    andWhere(
+        where:
+            | Brackets
+            | string
+            | ((qb: this) => string)
+            | ObjectLiteral
+            | ObjectLiteral[],
+        parameters?: ObjectLiteral
+    ): this {
+        this.expressionMap.wheres.push({
+            type: "and",
+            condition: this.getWhereCondition(where),
+        });
         if (parameters) this.setParameters(parameters);
         return this;
     }
@@ -135,8 +177,19 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
      * Adds new OR WHERE condition in the query builder.
      * Additionally you can add parameters used in where expression.
      */
-    orWhere(where: Brackets|string|((qb: this) => string)|ObjectLiteral|ObjectLiteral[], parameters?: ObjectLiteral): this {
-        this.expressionMap.wheres.push({ type: "or", condition: this.getWhereCondition(where) });
+    orWhere(
+        where:
+            | Brackets
+            | string
+            | ((qb: this) => string)
+            | ObjectLiteral
+            | ObjectLiteral[],
+        parameters?: ObjectLiteral
+    ): this {
+        this.expressionMap.wheres.push({
+            type: "or",
+            condition: this.getWhereCondition(where),
+        });
         if (parameters) this.setParameters(parameters);
         return this;
     }
@@ -146,21 +199,21 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
      * If you had previously WHERE expression defined,
      * calling this function will override previously set WHERE conditions.
      */
-    whereInIds(ids: any|any[]): this {
+    whereInIds(ids: any | any[]): this {
         return this.where(this.getWhereInIdsCondition(ids));
     }
 
     /**
      * Adds new AND WHERE with conditions for the given ids.
      */
-    andWhereInIds(ids: any|any[]): this {
+    andWhereInIds(ids: any | any[]): this {
         return this.andWhere(this.getWhereInIdsCondition(ids));
     }
 
     /**
      * Adds new OR WHERE with conditions for the given ids.
      */
-    orWhereInIds(ids: any|any[]): this {
+    orWhereInIds(ids: any | any[]): this {
         return this.orWhere(this.getWhereInIdsCondition(ids));
     }
     /**
@@ -178,12 +231,12 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
     /**
      * Optional returning/output clause.
      */
-    output(output: string|string[]): this;
+    output(output: string | string[]): this;
 
     /**
      * Optional returning/output clause.
      */
-    output(output: string|string[]): this {
+    output(output: string | string[]): this {
         return this.returning(output);
     }
 
@@ -202,13 +255,12 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
     /**
      * Optional returning/output clause.
      */
-    returning(returning: string|string[]): this;
+    returning(returning: string | string[]): this;
 
     /**
      * Optional returning/output clause.
      */
-    returning(returning: string|string[]): this {
-
+    returning(returning: string | string[]): this {
         // not all databases support returning/output cause
         if (!this.connection.driver.isReturningSqlSupported("delete")) {
             throw new ReturningStatementNotSupportedError();
@@ -238,5 +290,4 @@ export class DeleteQueryBuilder<Entity> extends QueryBuilder<Entity> implements 
         }
         return `DELETE FROM ${tableName}${whereExpression} RETURNING ${returningExpression}`;
     }
-
 }

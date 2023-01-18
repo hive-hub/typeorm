@@ -1,31 +1,31 @@
-import {ObjectLiteral} from "../common/ObjectLiteral";
-import {QueryRunner} from "../query-runner/QueryRunner";
-import {Connection} from "../connection/Connection";
-import {QueryExpressionMap} from "./QueryExpressionMap";
-import {SelectQueryBuilder} from "./SelectQueryBuilder";
-import {UpdateQueryBuilder} from "./UpdateQueryBuilder";
-import {DeleteQueryBuilder} from "./DeleteQueryBuilder";
-import {SoftDeleteQueryBuilder} from "./SoftDeleteQueryBuilder";
-import {InsertQueryBuilder} from "./InsertQueryBuilder";
-import {RelationQueryBuilder} from "./RelationQueryBuilder";
-import {EntityTarget} from "../common/EntityTarget";
-import {Alias} from "./Alias";
-import {Brackets} from "./Brackets";
-import {QueryDeepPartialEntity} from "./QueryPartialEntity";
-import {EntityMetadata} from "../metadata/EntityMetadata";
-import {ColumnMetadata} from "../metadata/ColumnMetadata";
-import {PostgresDriver} from "../driver/postgres/PostgresDriver";
-import {CockroachDriver} from "../driver/cockroachdb/CockroachDriver";
-import {SqlServerDriver} from "../driver/sqlserver/SqlServerDriver";
-import {OracleDriver} from "../driver/oracle/OracleDriver";
-import {EntitySchema} from "../entity-schema/EntitySchema";
-import {FindOperator} from "../find-options/FindOperator";
-import {In} from "../find-options/operator/In";
-import {EntityColumnNotFound} from "../error/EntityColumnNotFound";
-import {TypeORMError} from "../error";
-import {WhereClause, WhereClauseCondition} from "./WhereClause";
-import {NotBrackets} from "./NotBrackets";
-import {ReturningType} from "../driver/Driver";
+import { ObjectLiteral } from "../common/ObjectLiteral";
+import { QueryRunner } from "../query-runner/QueryRunner";
+import { Connection } from "../connection/Connection";
+import { QueryExpressionMap } from "./QueryExpressionMap";
+import { SelectQueryBuilder } from "./SelectQueryBuilder";
+import { UpdateQueryBuilder } from "./UpdateQueryBuilder";
+import { DeleteQueryBuilder } from "./DeleteQueryBuilder";
+import { SoftDeleteQueryBuilder } from "./SoftDeleteQueryBuilder";
+import { InsertQueryBuilder } from "./InsertQueryBuilder";
+import { RelationQueryBuilder } from "./RelationQueryBuilder";
+import { EntityTarget } from "../common/EntityTarget";
+import { Alias } from "./Alias";
+import { Brackets } from "./Brackets";
+import { QueryDeepPartialEntity } from "./QueryPartialEntity";
+import { EntityMetadata } from "../metadata/EntityMetadata";
+import { ColumnMetadata } from "../metadata/ColumnMetadata";
+import { PostgresDriver } from "../driver/postgres/PostgresDriver";
+import { CockroachDriver } from "../driver/cockroachdb/CockroachDriver";
+import { SqlServerDriver } from "../driver/sqlserver/SqlServerDriver";
+import { OracleDriver } from "../driver/oracle/OracleDriver";
+import { EntitySchema } from "../entity-schema/EntitySchema";
+import { FindOperator } from "../find-options/FindOperator";
+import { In } from "../find-options/operator/In";
+import { EntityColumnNotFound } from "../error/EntityColumnNotFound";
+import { TypeORMError } from "../error";
+import { WhereClause, WhereClauseCondition } from "./WhereClause";
+import { NotBrackets } from "./NotBrackets";
+import { ReturningType } from "../driver/Driver";
 
 // todo: completely cover query builder with tests
 // todo: entityOrProperty can be target name. implement proper behaviour if it is.
@@ -45,8 +45,7 @@ import {ReturningType} from "../driver/Driver";
 /**
  * Allows to build complex sql queries in a fashion way and execute those queries.
  */
-export abstract class QueryBuilder<Entity> {
-
+export abstract class QueryBuilder<Entity extends ObjectLiteral> {
     // -------------------------------------------------------------------------
     // Public Properties
     // -------------------------------------------------------------------------
@@ -97,12 +96,14 @@ export abstract class QueryBuilder<Entity> {
     /**
      * QueryBuilder can be initialized from given Connection and QueryRunner objects or from given other QueryBuilder.
      */
-    constructor(connectionOrQueryBuilder: Connection|QueryBuilder<any>, queryRunner?: QueryRunner) {
+    constructor(
+        connectionOrQueryBuilder: Connection | QueryBuilder<any>,
+        queryRunner?: QueryRunner
+    ) {
         if (connectionOrQueryBuilder instanceof QueryBuilder) {
             this.connection = connectionOrQueryBuilder.connection;
             this.queryRunner = connectionOrQueryBuilder.queryRunner;
             this.expressionMap = connectionOrQueryBuilder.expressionMap.clone();
-
         } else {
             this.connection = connectionOrQueryBuilder;
             this.queryRunner = queryRunner;
@@ -147,7 +148,10 @@ export abstract class QueryBuilder<Entity> {
      * Creates SELECT query and selects given data.
      * Replaces all previous selections if they exist.
      */
-    select(selection: string, selectionAliasName?: string): SelectQueryBuilder<Entity>;
+    select(
+        selection: string,
+        selectionAliasName?: string
+    ): SelectQueryBuilder<Entity>;
 
     /**
      * Creates SELECT query and selects given data.
@@ -159,18 +163,25 @@ export abstract class QueryBuilder<Entity> {
      * Creates SELECT query and selects given data.
      * Replaces all previous selections if they exist.
      */
-    select(selection?: string|string[], selectionAliasName?: string): SelectQueryBuilder<Entity> {
+    select(
+        selection?: string | string[],
+        selectionAliasName?: string
+    ): SelectQueryBuilder<Entity> {
         this.expressionMap.queryType = "select";
         if (Array.isArray(selection)) {
-            this.expressionMap.selects = selection.map(selection => ({ selection: selection }));
+            this.expressionMap.selects = selection.map((selection) => ({
+                selection: selection,
+            }));
         } else if (selection) {
-            this.expressionMap.selects = [{ selection: selection, aliasName: selectionAliasName }];
+            this.expressionMap.selects = [
+                { selection: selection, aliasName: selectionAliasName },
+            ];
         }
 
         // loading it dynamically because of circular issue
-        const SelectQueryBuilderCls = require("./SelectQueryBuilder").SelectQueryBuilder;
-        if (this instanceof SelectQueryBuilderCls)
-            return this as any;
+        const SelectQueryBuilderCls =
+            require("./SelectQueryBuilder").SelectQueryBuilder;
+        if (this instanceof SelectQueryBuilderCls) return this as any;
 
         return new SelectQueryBuilderCls(this);
     }
@@ -182,9 +193,9 @@ export abstract class QueryBuilder<Entity> {
         this.expressionMap.queryType = "insert";
 
         // loading it dynamically because of circular issue
-        const InsertQueryBuilderCls = require("./InsertQueryBuilder").InsertQueryBuilder;
-        if (this instanceof InsertQueryBuilderCls)
-            return this as any;
+        const InsertQueryBuilderCls =
+            require("./InsertQueryBuilder").InsertQueryBuilder;
+        if (this instanceof InsertQueryBuilderCls) return this as any;
 
         return new InsertQueryBuilderCls(this);
     }
@@ -197,26 +208,45 @@ export abstract class QueryBuilder<Entity> {
     /**
      * Creates UPDATE query and applies given update values.
      */
-    update(updateSet: QueryDeepPartialEntity<Entity>): UpdateQueryBuilder<Entity>;
+    update(
+        updateSet: QueryDeepPartialEntity<Entity>
+    ): UpdateQueryBuilder<Entity>;
 
     /**
      * Creates UPDATE query for the given entity and applies given update values.
      */
-    update<Entity>(entity: EntityTarget<Entity>, updateSet?: QueryDeepPartialEntity<Entity>): UpdateQueryBuilder<Entity>;
+    update<Entity extends ObjectLiteral>(
+        entity: EntityTarget<Entity>,
+        updateSet?: QueryDeepPartialEntity<Entity>
+    ): UpdateQueryBuilder<Entity>;
 
     /**
      * Creates UPDATE query for the given table name and applies given update values.
      */
-    update(tableName: string, updateSet?: QueryDeepPartialEntity<Entity>): UpdateQueryBuilder<Entity>;
+    update(
+        tableName: string,
+        updateSet?: QueryDeepPartialEntity<Entity>
+    ): UpdateQueryBuilder<Entity>;
 
     /**
      * Creates UPDATE query and applies given update values.
      */
-    update(entityOrTableNameUpdateSet?: EntityTarget<any>|ObjectLiteral, maybeUpdateSet?: ObjectLiteral): UpdateQueryBuilder<any> {
-        const updateSet = maybeUpdateSet ? maybeUpdateSet : entityOrTableNameUpdateSet as ObjectLiteral|undefined;
-        entityOrTableNameUpdateSet = entityOrTableNameUpdateSet instanceof EntitySchema ? entityOrTableNameUpdateSet.options.name : entityOrTableNameUpdateSet;
+    update(
+        entityOrTableNameUpdateSet?: EntityTarget<any> | ObjectLiteral,
+        maybeUpdateSet?: ObjectLiteral
+    ): UpdateQueryBuilder<any> {
+        const updateSet = maybeUpdateSet
+            ? maybeUpdateSet
+            : (entityOrTableNameUpdateSet as ObjectLiteral | undefined);
+        entityOrTableNameUpdateSet =
+            entityOrTableNameUpdateSet instanceof EntitySchema
+                ? entityOrTableNameUpdateSet.options.name
+                : entityOrTableNameUpdateSet;
 
-        if (entityOrTableNameUpdateSet instanceof Function || typeof entityOrTableNameUpdateSet === "string") {
+        if (
+            entityOrTableNameUpdateSet instanceof Function ||
+            typeof entityOrTableNameUpdateSet === "string"
+        ) {
             const mainAlias = this.createFromAlias(entityOrTableNameUpdateSet);
             this.expressionMap.setMainAlias(mainAlias);
         }
@@ -225,9 +255,9 @@ export abstract class QueryBuilder<Entity> {
         this.expressionMap.valuesSet = updateSet;
 
         // loading it dynamically because of circular issue
-        const UpdateQueryBuilderCls = require("./UpdateQueryBuilder").UpdateQueryBuilder;
-        if (this instanceof UpdateQueryBuilderCls)
-            return this as any;
+        const UpdateQueryBuilderCls =
+            require("./UpdateQueryBuilder").UpdateQueryBuilder;
+        if (this instanceof UpdateQueryBuilderCls) return this as any;
 
         return new UpdateQueryBuilderCls(this);
     }
@@ -239,9 +269,9 @@ export abstract class QueryBuilder<Entity> {
         this.expressionMap.queryType = "delete";
 
         // loading it dynamically because of circular issue
-        const DeleteQueryBuilderCls = require("./DeleteQueryBuilder").DeleteQueryBuilder;
-        if (this instanceof DeleteQueryBuilderCls)
-            return this as any;
+        const DeleteQueryBuilderCls =
+            require("./DeleteQueryBuilder").DeleteQueryBuilder;
+        if (this instanceof DeleteQueryBuilderCls) return this as any;
 
         return new DeleteQueryBuilderCls(this);
     }
@@ -250,9 +280,9 @@ export abstract class QueryBuilder<Entity> {
         this.expressionMap.queryType = "soft-delete";
 
         // loading it dynamically because of circular issue
-        const SoftDeleteQueryBuilderCls = require("./SoftDeleteQueryBuilder").SoftDeleteQueryBuilder;
-        if (this instanceof SoftDeleteQueryBuilderCls)
-            return this as any;
+        const SoftDeleteQueryBuilderCls =
+            require("./SoftDeleteQueryBuilder").SoftDeleteQueryBuilder;
+        if (this instanceof SoftDeleteQueryBuilderCls) return this as any;
 
         return new SoftDeleteQueryBuilderCls(this);
     }
@@ -261,9 +291,9 @@ export abstract class QueryBuilder<Entity> {
         this.expressionMap.queryType = "restore";
 
         // loading it dynamically because of circular issue
-        const SoftDeleteQueryBuilderCls = require("./SoftDeleteQueryBuilder").SoftDeleteQueryBuilder;
-        if (this instanceof SoftDeleteQueryBuilderCls)
-            return this as any;
+        const SoftDeleteQueryBuilderCls =
+            require("./SoftDeleteQueryBuilder").SoftDeleteQueryBuilder;
+        if (this instanceof SoftDeleteQueryBuilderCls) return this as any;
 
         return new SoftDeleteQueryBuilderCls(this);
     }
@@ -276,14 +306,24 @@ export abstract class QueryBuilder<Entity> {
     /**
      * Sets entity's relation with which this query builder gonna work.
      */
-    relation<T>(entityTarget: EntityTarget<T>, propertyPath: string): RelationQueryBuilder<T>;
+    relation<T extends ObjectLiteral>(
+        entityTarget: EntityTarget<T>,
+        propertyPath: string
+    ): RelationQueryBuilder<T>;
 
     /**
      * Sets entity's relation with which this query builder gonna work.
      */
-    relation(entityTargetOrPropertyPath: Function|string, maybePropertyPath?: string): RelationQueryBuilder<Entity> {
-        const entityTarget = arguments.length === 2 ? entityTargetOrPropertyPath : undefined;
-        const propertyPath = arguments.length === 2 ? maybePropertyPath as string : entityTargetOrPropertyPath as string;
+    relation(
+        entityTargetOrPropertyPath: Function | string,
+        maybePropertyPath?: string
+    ): RelationQueryBuilder<Entity> {
+        const entityTarget =
+            arguments.length === 2 ? entityTargetOrPropertyPath : undefined;
+        const propertyPath =
+            arguments.length === 2
+                ? (maybePropertyPath as string)
+                : (entityTargetOrPropertyPath as string);
 
         this.expressionMap.queryType = "relation";
         this.expressionMap.relationPropertyPath = propertyPath;
@@ -294,13 +334,12 @@ export abstract class QueryBuilder<Entity> {
         }
 
         // loading it dynamically because of circular issue
-        const RelationQueryBuilderCls = require("./RelationQueryBuilder").RelationQueryBuilder;
-        if (this instanceof RelationQueryBuilderCls)
-            return this as any;
+        const RelationQueryBuilderCls =
+            require("./RelationQueryBuilder").RelationQueryBuilder;
+        if (this instanceof RelationQueryBuilderCls) return this as any;
 
         return new RelationQueryBuilderCls(this);
     }
-
 
     /**
      * Checks if given relation exists in the entity.
@@ -324,10 +363,13 @@ export abstract class QueryBuilder<Entity> {
      *
      * todo: move this method to manager? or create a shortcut?
      */
-    hasRelation<T>(target: EntityTarget<T>, relation: string|string[]): boolean {
+    hasRelation<T>(
+        target: EntityTarget<T>,
+        relation: string | string[]
+    ): boolean {
         const entityMetadata = this.connection.getMetadata(target);
         const relations = Array.isArray(relation) ? relation : [relation];
-        return relations.every(relation => {
+        return relations.every((relation) => {
             return !!entityMetadata.findRelationWithPropertyPath(relation);
         });
     }
@@ -336,7 +378,10 @@ export abstract class QueryBuilder<Entity> {
      * Check the existence of a parameter for this query builder.
      */
     hasParameter(key: string): boolean {
-        return this.parentQueryBuilder?.hasParameter(key) || key in this.expressionMap.parameters;
+        return (
+            this.parentQueryBuilder?.hasParameter(key) ||
+            key in this.expressionMap.parameters
+        );
     }
 
     /**
@@ -346,11 +391,15 @@ export abstract class QueryBuilder<Entity> {
      */
     setParameter(key: string, value: any): this {
         if (value instanceof Function) {
-            throw new TypeORMError(`Function parameter isn't supported in the parameters. Please check "${key}" parameter.`);
+            throw new TypeORMError(
+                `Function parameter isn't supported in the parameters. Please check "${key}" parameter.`
+            );
         }
 
         if (!key.match(/^([A-Za-z0-9_.]+)$/)) {
-            throw new TypeORMError("QueryBuilder parameter keys may only contain numbers, letters, underscores, or periods.");
+            throw new TypeORMError(
+                "QueryBuilder parameter keys may only contain numbers, letters, underscores, or periods."
+            );
         }
 
         if (this.parentQueryBuilder) {
@@ -390,13 +439,12 @@ export abstract class QueryBuilder<Entity> {
      * @deprecated Use `setParameters` instead
      */
     setNativeParameters(parameters: ObjectLiteral): this {
-
         // set parent query builder parameters as well in sub-query mode
         if (this.parentQueryBuilder) {
             this.parentQueryBuilder.setNativeParameters(parameters);
         }
 
-        Object.keys(parameters).forEach(key => {
+        Object.keys(parameters).forEach((key) => {
             this.expressionMap.nativeParameters[key] = parameters[key];
         });
         return this;
@@ -406,15 +454,23 @@ export abstract class QueryBuilder<Entity> {
      * Gets all parameters.
      */
     getParameters(): ObjectLiteral {
-        const parameters: ObjectLiteral = Object.assign({}, this.expressionMap.parameters);
+        const parameters: ObjectLiteral = Object.assign(
+            {},
+            this.expressionMap.parameters
+        );
 
         // add discriminator column parameter if it exist
-        if (this.expressionMap.mainAlias && this.expressionMap.mainAlias.hasMetadata) {
+        if (
+            this.expressionMap.mainAlias &&
+            this.expressionMap.mainAlias.hasMetadata
+        ) {
             const metadata = this.expressionMap.mainAlias!.metadata;
             if (metadata.discriminatorColumn && metadata.parentEntityMetadata) {
                 const values = metadata.childEntityMetadatas
-                    .filter(childMetadata => childMetadata.discriminatorColumn)
-                    .map(childMetadata => childMetadata.discriminatorValue);
+                    .filter(
+                        (childMetadata) => childMetadata.discriminatorColumn
+                    )
+                    .map((childMetadata) => childMetadata.discriminatorValue);
                 values.push(metadata.discriminatorValue);
                 parameters["discriminatorColumnValues"] = values;
             }
@@ -426,7 +482,8 @@ export abstract class QueryBuilder<Entity> {
     /**
      * Prints sql to stdout using console.log.
      */
-    printSql(): this { // TODO rename to logSql()
+    printSql(): this {
+        // TODO rename to logSql()
         const [query, parameters] = this.getQueryAndParameters();
         this.connection.logger.logQuery(query, parameters);
         return this;
@@ -447,7 +504,11 @@ export abstract class QueryBuilder<Entity> {
         // this execution order is important because getQuery method generates this.expressionMap.nativeParameters values
         const query = this.getQuery();
         const parameters = this.getParameters();
-        return this.connection.driver.escapeQueryWithParameters(query, parameters, this.expressionMap.nativeParameters);
+        return this.connection.driver.escapeQueryWithParameters(
+            query,
+            parameters,
+            this.expressionMap.nativeParameters
+        );
     }
 
     /**
@@ -457,9 +518,10 @@ export abstract class QueryBuilder<Entity> {
         const [sql, parameters] = this.getQueryAndParameters();
         const queryRunner = this.obtainQueryRunner();
         try {
-            return await queryRunner.query(sql, parameters);  // await is needed here because we are using finally
+            return await queryRunner.query(sql, parameters); // await is needed here because we are using finally
         } finally {
-            if (queryRunner !== this.queryRunner) { // means we created our own query runner
+            if (queryRunner !== this.queryRunner) {
+                // means we created our own query runner
                 await queryRunner.release();
             }
         }
@@ -505,8 +567,7 @@ export abstract class QueryBuilder<Entity> {
      * Escapes table name, column name or alias name using current database's escaping character.
      */
     escape(name: string): string {
-        if (!this.expressionMap.disableEscaping)
-            return name;
+        if (!this.expressionMap.disableEscaping) return name;
         return this.connection.driver.escape(name);
     }
 
@@ -544,13 +605,14 @@ export abstract class QueryBuilder<Entity> {
      * schema name, otherwise returns escaped table name.
      */
     protected getTableName(tablePath: string): string {
-        return tablePath.split(".")
-            .map(i => {
+        return tablePath
+            .split(".")
+            .map((i) => {
                 // this condition need because in SQL Server driver when custom database name was specified and schema name was not, we got `dbName..tableName` string, and doesn't need to escape middle empty string
-                if (i === "")
-                    return i;
+                if (i === "") return i;
                 return this.escape(i);
-            }).join(".");
+            })
+            .join(".");
     }
 
     /**
@@ -558,7 +620,9 @@ export abstract class QueryBuilder<Entity> {
      */
     protected getMainTableName(): string {
         if (!this.expressionMap.mainAlias)
-            throw new TypeORMError(`Entity where values should be inserted is not specified. Call "qb.into(entity)" method to specify it.`);
+            throw new TypeORMError(
+                `Entity where values should be inserted is not specified. Call "qb.into(entity)" method to specify it.`
+            );
 
         if (this.expressionMap.mainAlias.hasMetadata)
             return this.expressionMap.mainAlias.metadata.tablePath;
@@ -570,8 +634,12 @@ export abstract class QueryBuilder<Entity> {
      * Specifies FROM which entity's table select/update/delete will be executed.
      * Also sets a main string alias of the selection data.
      */
-    protected createFromAlias(entityTarget: EntityTarget<any>|((qb: SelectQueryBuilder<any>) => SelectQueryBuilder<any>), aliasName?: string): Alias {
-
+    protected createFromAlias(
+        entityTarget:
+            | EntityTarget<any>
+            | ((qb: SelectQueryBuilder<any>) => SelectQueryBuilder<any>),
+        aliasName?: string
+    ): Alias {
         // if table has a metadata then find it to properly escape its properties
         // const metadata = this.connection.entityMetadatas.find(metadata => metadata.tableName === tableName);
         if (this.connection.hasMetadata(entityTarget)) {
@@ -581,29 +649,34 @@ export abstract class QueryBuilder<Entity> {
                 type: "from",
                 name: aliasName,
                 metadata: this.connection.getMetadata(entityTarget),
-                tablePath: metadata.tablePath
+                tablePath: metadata.tablePath,
             });
-
         } else {
             if (typeof entityTarget === "string") {
-                const isSubquery = entityTarget.substr(0, 1) === "(" && entityTarget.substr(-1) === ")";
+                const isSubquery =
+                    entityTarget.substr(0, 1) === "(" &&
+                    entityTarget.substr(-1) === ")";
 
                 return this.expressionMap.createAlias({
                     type: "from",
                     name: aliasName,
-                    tablePath: !isSubquery ? entityTarget as string : undefined,
+                    tablePath: !isSubquery
+                        ? (entityTarget as string)
+                        : undefined,
                     subQuery: isSubquery ? entityTarget : undefined,
                 });
             }
 
-            const subQueryBuilder: SelectQueryBuilder<any> = (entityTarget as any)(((this as any) as SelectQueryBuilder<any>).subQuery());
+            const subQueryBuilder: SelectQueryBuilder<any> = (
+                entityTarget as any
+            )((this as any as SelectQueryBuilder<any>).subQuery());
             this.setParameters(subQueryBuilder.getParameters());
             const subquery = subQueryBuilder.getQuery();
 
             return this.expressionMap.createAlias({
                 type: "from",
                 name: aliasName,
-                subQuery: subquery
+                subQuery: subquery,
             });
         }
     }
@@ -614,12 +687,19 @@ export abstract class QueryBuilder<Entity> {
     protected replacePropertyNames(statement: string) {
         // Escape special characters in regular expressions
         // Per https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Escaping
-        const escapeRegExp = (s: String) => s.replace(/[.*+\-?^${}()|[\]\\]/g, "\\$&");
+        const escapeRegExp = (s: String) =>
+            s.replace(/[.*+\-?^${}()|[\]\\]/g, "\\$&");
 
         for (const alias of this.expressionMap.aliases) {
             if (!alias.hasMetadata) continue;
-            const replaceAliasNamePrefix = this.expressionMap.aliasNamePrefixingEnabled ? `${alias.name}.` : "";
-            const replacementAliasNamePrefix = this.expressionMap.aliasNamePrefixingEnabled ? `${this.escape(alias.name)}.` : "";
+            const replaceAliasNamePrefix = this.expressionMap
+                .aliasNamePrefixingEnabled
+                ? `${alias.name}.`
+                : "";
+            const replacementAliasNamePrefix = this.expressionMap
+                .aliasNamePrefixingEnabled
+                ? `${this.escape(alias.name)}.`
+                : "";
 
             const replacements: { [key: string]: string } = {};
 
@@ -634,12 +714,18 @@ export abstract class QueryBuilder<Entity> {
 
             for (const relation of alias.metadata.relations) {
                 if (relation.joinColumns.length > 0)
-                    replacements[relation.propertyPath] = relation.joinColumns[0].databaseName;
+                    replacements[relation.propertyPath] =
+                        relation.joinColumns[0].databaseName;
             }
 
             for (const relation of alias.metadata.relations) {
-                for (const joinColumn of [...relation.joinColumns, ...relation.inverseJoinColumns]) {
-                    const propertyKey = `${relation.propertyPath}.${joinColumn.referencedColumn!.propertyPath}`;
+                for (const joinColumn of [
+                    ...relation.joinColumns,
+                    ...relation.inverseJoinColumns,
+                ]) {
+                    const propertyKey = `${relation.propertyPath}.${
+                        joinColumn.referencedColumn!.propertyPath
+                    }`;
                     replacements[propertyKey] = joinColumn.databaseName;
                 }
             }
@@ -659,14 +745,22 @@ export abstract class QueryBuilder<Entity> {
             const replacementKeys = Object.keys(replacements);
 
             if (replacementKeys.length) {
-                statement = statement.replace(new RegExp(
-                    // Avoid a lookbehind here since it's not well supported
-                    `([ =\(]|^.{0})` +
-                    `${escapeRegExp(replaceAliasNamePrefix)}(${replacementKeys.map(escapeRegExp).join("|")})` +
-                    `(?=[ =\)\,]|.{0}$)`,
-                    "gm"
-                ), (_, pre, p) =>
-                    `${pre}${replacementAliasNamePrefix}${this.escape(replacements[p])}`
+                statement = statement.replace(
+                    new RegExp(
+                        // Avoid a lookbehind here since it's not well supported
+                        `([ =\(]|^.{0})` +
+                            `${escapeRegExp(
+                                replaceAliasNamePrefix
+                            )}(${replacementKeys
+                                .map(escapeRegExp)
+                                .join("|")})` +
+                            `(?=[ =\)\,]|.{0}$)`,
+                        "gm"
+                    ),
+                    (_, pre, p) =>
+                        `${pre}${replacementAliasNamePrefix}${this.escape(
+                            replacements[p]
+                        )}`
                 );
             }
         }
@@ -693,7 +787,9 @@ export abstract class QueryBuilder<Entity> {
     protected createWhereExpression() {
         const conditionsArray = [];
 
-        const whereExpression = this.createWhereClausesExpression(this.expressionMap.wheres);
+        const whereExpression = this.createWhereClausesExpression(
+            this.expressionMap.wheres
+        );
 
         if (whereExpression.length > 0 && whereExpression !== "1=1") {
             conditionsArray.push(this.replacePropertyNames(whereExpression));
@@ -702,27 +798,41 @@ export abstract class QueryBuilder<Entity> {
         if (this.expressionMap.mainAlias!.hasMetadata) {
             const metadata = this.expressionMap.mainAlias!.metadata;
             // Adds the global condition of "non-deleted" for the entity with delete date columns in select query.
-            if (this.expressionMap.queryType === "select" && !this.expressionMap.withDeleted && metadata.deleteDateColumn) {
+            if (
+                this.expressionMap.queryType === "select" &&
+                !this.expressionMap.withDeleted &&
+                metadata.deleteDateColumn
+            ) {
                 const column = this.expressionMap.aliasNamePrefixingEnabled
-                    ? this.expressionMap.mainAlias!.name + "." + metadata.deleteDateColumn.propertyName
+                    ? this.expressionMap.mainAlias!.name +
+                      "." +
+                      metadata.deleteDateColumn.propertyName
                     : metadata.deleteDateColumn.propertyName;
 
-                const condition = `${this.replacePropertyNames(column)} IS NULL`;
+                const condition = `${this.replacePropertyNames(
+                    column
+                )} IS NULL`;
                 conditionsArray.push(condition);
             }
 
             if (metadata.discriminatorColumn && metadata.parentEntityMetadata) {
                 const column = this.expressionMap.aliasNamePrefixingEnabled
-                    ? this.expressionMap.mainAlias!.name + "." + metadata.discriminatorColumn.databaseName
+                    ? this.expressionMap.mainAlias!.name +
+                      "." +
+                      metadata.discriminatorColumn.databaseName
                     : metadata.discriminatorColumn.databaseName;
 
-                const condition = `${this.replacePropertyNames(column)} IN (:...discriminatorColumnValues)`;
+                const condition = `${this.replacePropertyNames(
+                    column
+                )} IN (:...discriminatorColumnValues)`;
                 conditionsArray.push(condition);
             }
         }
 
         if (this.expressionMap.extraAppendedAndWhereCondition) {
-            const condition = this.replacePropertyNames(this.expressionMap.extraAppendedAndWhereCondition);
+            const condition = this.replacePropertyNames(
+                this.expressionMap.extraAppendedAndWhereCondition
+            );
             conditionsArray.push(condition);
         }
 
@@ -744,42 +854,68 @@ export abstract class QueryBuilder<Entity> {
 
         // also add columns we must auto-return to perform entity updation
         // if user gave his own returning
-        if (typeof this.expressionMap.returning !== "string" &&
+        if (
+            typeof this.expressionMap.returning !== "string" &&
             this.expressionMap.extraReturningColumns.length > 0 &&
-            driver.isReturningSqlSupported(returningType)) {
-            columns.push(...this.expressionMap.extraReturningColumns.filter(column => {
-                return columns.indexOf(column) === -1;
-            }));
+            driver.isReturningSqlSupported(returningType)
+        ) {
+            columns.push(
+                ...this.expressionMap.extraReturningColumns.filter((column) => {
+                    return columns.indexOf(column) === -1;
+                })
+            );
         }
 
         if (columns.length) {
-            let columnsExpression = columns.map(column => {
-                const name = this.escape(column.databaseName);
-                if (driver instanceof SqlServerDriver) {
-                    if (this.expressionMap.queryType === "insert" || this.expressionMap.queryType === "update" || this.expressionMap.queryType === "soft-delete" || this.expressionMap.queryType === "restore") {
-                        return "INSERTED." + name;
+            let columnsExpression = columns
+                .map((column) => {
+                    const name = this.escape(column.databaseName);
+                    if (driver instanceof SqlServerDriver) {
+                        if (
+                            this.expressionMap.queryType === "insert" ||
+                            this.expressionMap.queryType === "update" ||
+                            this.expressionMap.queryType === "soft-delete" ||
+                            this.expressionMap.queryType === "restore"
+                        ) {
+                            return "INSERTED." + name;
+                        } else {
+                            return (
+                                this.escape(this.getMainTableName()) +
+                                "." +
+                                name
+                            );
+                        }
                     } else {
-                        return this.escape(this.getMainTableName()) + "." + name;
+                        return name;
                     }
-                } else {
-                    return name;
-                }
-            }).join(", ");
+                })
+                .join(", ");
 
             if (driver instanceof OracleDriver) {
-                columnsExpression += " INTO " + columns.map(column => {
-                    return this.createParameter({ type: driver.columnTypeToNativeParameter(column.type), dir: driver.oracle.BIND_OUT });
-                }).join(", ");
+                columnsExpression +=
+                    " INTO " +
+                    columns
+                        .map((column) => {
+                            return this.createParameter({
+                                type: driver.columnTypeToNativeParameter(
+                                    column.type
+                                ),
+                                dir: driver.oracle.BIND_OUT,
+                            });
+                        })
+                        .join(", ");
             }
 
             if (driver instanceof SqlServerDriver) {
-                if (this.expressionMap.queryType === "insert" || this.expressionMap.queryType === "update") {
+                if (
+                    this.expressionMap.queryType === "insert" ||
+                    this.expressionMap.queryType === "update"
+                ) {
                     columnsExpression += " INTO @OutputTable";
                 }
             }
 
             return columnsExpression;
-
         } else if (typeof this.expressionMap.returning === "string") {
             return this.expressionMap.returning;
         }
@@ -794,9 +930,13 @@ export abstract class QueryBuilder<Entity> {
     protected getReturningColumns(): ColumnMetadata[] {
         const columns: ColumnMetadata[] = [];
         if (Array.isArray(this.expressionMap.returning)) {
-            (this.expressionMap.returning as string[]).forEach(columnName => {
+            (this.expressionMap.returning as string[]).forEach((columnName) => {
                 if (this.expressionMap.mainAlias!.hasMetadata) {
-                    columns.push(...this.expressionMap.mainAlias!.metadata.findColumnsWithPropertyPath(columnName));
+                    columns.push(
+                        ...this.expressionMap.mainAlias!.metadata.findColumnsWithPropertyPath(
+                            columnName
+                        )
+                    );
                 }
             });
         }
@@ -804,26 +944,33 @@ export abstract class QueryBuilder<Entity> {
     }
 
     protected createWhereClausesExpression(clauses: WhereClause[]): string {
-        return clauses.map((clause, index) => {
-            const expression = this.createWhereConditionExpression(clause.condition);
+        return clauses
+            .map((clause, index) => {
+                const expression = this.createWhereConditionExpression(
+                    clause.condition
+                );
 
-            switch (clause.type) {
-                case "and":
-                    return (index > 0 ? "AND " : "") + expression;
-                case "or":
-                    return (index > 0 ? "OR " : "") + expression;
-            }
+                switch (clause.type) {
+                    case "and":
+                        return (index > 0 ? "AND " : "") + expression;
+                    case "or":
+                        return (index > 0 ? "OR " : "") + expression;
+                }
 
-            return expression;
-        }).join(" ").trim();
+                return expression;
+            })
+            .join(" ")
+            .trim();
     }
 
     /**
      * Computes given where argument - transforms to a where string all forms it can take.
      */
-    protected createWhereConditionExpression(condition: WhereClauseCondition, alwaysWrap: boolean = false): string {
-        if (typeof condition === "string")
-            return condition;
+    protected createWhereConditionExpression(
+        condition: WhereClauseCondition,
+        alwaysWrap: boolean = false
+    ): string {
+        if (typeof condition === "string") return condition;
 
         if (Array.isArray(condition)) {
             if (condition.length === 0) {
@@ -855,7 +1002,10 @@ export abstract class QueryBuilder<Entity> {
             case "equal":
                 return `${condition.parameters[0]} = ${condition.parameters[1]}`;
             case "ilike":
-                if (driver instanceof PostgresDriver || driver instanceof CockroachDriver) {
+                if (
+                    driver instanceof PostgresDriver ||
+                    driver instanceof CockroachDriver
+                ) {
                     return `${condition.parameters[0]} ILIKE ${condition.parameters[1]}`;
                 }
 
@@ -868,27 +1018,40 @@ export abstract class QueryBuilder<Entity> {
                 if (condition.parameters.length <= 1) {
                     return "0=1";
                 }
-                return `${condition.parameters[0]} IN (${condition.parameters.slice(1).join(", ")})`;
+                return `${condition.parameters[0]} IN (${condition.parameters
+                    .slice(1)
+                    .join(", ")})`;
             case "any":
                 return `${condition.parameters[0]} = ANY(${condition.parameters[1]})`;
             case "isNull":
                 return `${condition.parameters[0]} IS NULL`;
 
             case "not":
-                return `NOT(${this.createWhereConditionExpression(condition.condition)})`;
+                return `NOT(${this.createWhereConditionExpression(
+                    condition.condition
+                )})`;
             case "brackets":
-                return `${this.createWhereConditionExpression(condition.condition, true)}`;
+                return `${this.createWhereConditionExpression(
+                    condition.condition,
+                    true
+                )}`;
         }
 
-        throw new TypeError(`Unsupported FindOperator ${FindOperator.constructor.name}`);
+        throw new TypeError(
+            `Unsupported FindOperator ${FindOperator.constructor.name}`
+        );
     }
 
     /**
      * Creates "WHERE" condition for an in-ids condition.
      */
-    protected getWhereInIdsCondition(ids: any|any[]): ObjectLiteral | Brackets  {
+    protected getWhereInIdsCondition(
+        ids: any | any[]
+    ): ObjectLiteral | Brackets {
         const metadata = this.expressionMap.mainAlias!.metadata;
-        const normalized = (Array.isArray(ids) ? ids : [ids]).map(id => metadata.ensureEntityIdMap(id));
+        const normalized = (Array.isArray(ids) ? ids : [ids]).map((id) =>
+            metadata.ensureEntityIdMap(id)
+        );
 
         // using in(...ids) for single primary key entities
         if (!metadata.hasMultiplePrimaryKeys) {
@@ -897,25 +1060,31 @@ export abstract class QueryBuilder<Entity> {
             // getEntityValue will try to transform `In`, it is a bug
             // todo: remove this transformer check after #2390 is fixed
             // This also fails for embedded & relation, so until that is fixed skip it.
-            if (!primaryColumn.transformer && !primaryColumn.relationMetadata && !primaryColumn.embeddedMetadata) {
+            if (
+                !primaryColumn.transformer &&
+                !primaryColumn.relationMetadata &&
+                !primaryColumn.embeddedMetadata
+            ) {
                 return {
                     [primaryColumn.propertyName]: In(
-                        normalized.map(id => primaryColumn.getEntityValue(id, false))
-                    )
+                        normalized.map((id) =>
+                            primaryColumn.getEntityValue(id, false)
+                        )
+                    ),
                 };
             }
         }
 
         return new Brackets((qb) => {
             for (const data of normalized) {
-                qb.orWhere(new Brackets(
-                    (qb) => qb.where(data)
-                ));
+                qb.orWhere(new Brackets((qb) => qb.where(data)));
             }
         });
     }
 
-    private findColumnsForPropertyPath(propertyPath: string): [ Alias, string[], ColumnMetadata[] ] {
+    private findColumnsForPropertyPath(
+        propertyPath: string
+    ): [Alias, string[], ColumnMetadata[]] {
         // Make a helper to iterate the entity & relations?
         // Use that to set the correct alias?  Or the other way around?
 
@@ -952,8 +1121,11 @@ export abstract class QueryBuilder<Entity> {
                 );
 
                 if (!joinAttr?.alias) {
-                    const fullRelationPath = root.length > 0 ? `${root.join(".")}.${part}` : part;
-                    throw new Error(`Cannot find alias for relation at ${fullRelationPath}`);
+                    const fullRelationPath =
+                        root.length > 0 ? `${root.join(".")}.${part}` : part;
+                    throw new Error(
+                        `Cannot find alias for relation at ${fullRelationPath}`
+                    );
                 }
 
                 alias = joinAttr.alias;
@@ -972,19 +1144,24 @@ export abstract class QueryBuilder<Entity> {
         // Remaining parts are combined back and used to find the actual property path
         const aliasPropertyPath = propertyPathParts.join(".");
 
-        const columns = alias.metadata.findColumnsWithPropertyPath(aliasPropertyPath);
+        const columns =
+            alias.metadata.findColumnsWithPropertyPath(aliasPropertyPath);
 
         if (!columns.length) {
             throw new EntityColumnNotFound(propertyPath);
         }
 
-        return [ alias, root, columns ];
+        return [alias, root, columns];
     }
 
     /**
      * Creates a property paths for a given ObjectLiteral.
      */
-    protected createPropertyPath(metadata: EntityMetadata, entity: ObjectLiteral, prefix: string = "") {
+    protected createPropertyPath(
+        metadata: EntityMetadata,
+        entity: ObjectLiteral,
+        prefix: string = ""
+    ) {
         const paths: string[] = [];
 
         for (const key of Object.keys(entity)) {
@@ -992,13 +1169,21 @@ export abstract class QueryBuilder<Entity> {
 
             // There's times where we don't actually want to traverse deeper.
             // If the value is a `FindOperator`, or null, or not an object, then we don't, for example.
-            if (entity[key] === null || typeof entity[key] !== "object" || entity[key] instanceof FindOperator) {
+            if (
+                entity[key] === null ||
+                typeof entity[key] !== "object" ||
+                entity[key] instanceof FindOperator
+            ) {
                 paths.push(path);
                 continue;
             }
 
             if (metadata.hasEmbeddedWithPropertyPath(path)) {
-                const subPaths = this.createPropertyPath(metadata, entity[key], path);
+                const subPaths = this.createPropertyPath(
+                    metadata,
+                    entity[key],
+                    path
+                );
                 paths.push(...subPaths);
                 continue;
             }
@@ -1013,14 +1198,19 @@ export abstract class QueryBuilder<Entity> {
                 // In the case of a *-to-one, there's only ever one possible entity on the other side
                 // so if the join columns are all defined we can return just the relation itself
                 // because it will fetch only the join columns and do the lookup.
-                if (relation.relationType === "one-to-one" || relation.relationType === "many-to-one") {
+                if (
+                    relation.relationType === "one-to-one" ||
+                    relation.relationType === "many-to-one"
+                ) {
                     const joinColumns = relation.joinColumns
-                        .map(j => j.referencedColumn)
+                        .map((j) => j.referencedColumn)
                         .filter((j): j is ColumnMetadata => !!j);
 
-                    const hasAllJoinColumns = joinColumns.length > 0 && joinColumns.every(
-                        column => column.getEntityValue(entity[key], false)
-                    );
+                    const hasAllJoinColumns =
+                        joinColumns.length > 0 &&
+                        joinColumns.every((column) =>
+                            column.getEntityValue(entity[key], false)
+                        );
 
                     if (hasAllJoinColumns) {
                         paths.push(path);
@@ -1028,8 +1218,13 @@ export abstract class QueryBuilder<Entity> {
                     }
                 }
 
-                if (relation.relationType === "one-to-many" || relation.relationType === "many-to-many") {
-                    throw new Error(`Cannot query across ${relation.relationType} for property ${path}`);
+                if (
+                    relation.relationType === "one-to-many" ||
+                    relation.relationType === "many-to-many"
+                ) {
+                    throw new Error(
+                        `Cannot query across ${relation.relationType} for property ${path}`
+                    );
                 }
 
                 // For any other case, if the `entity[key]` contains all of the primary keys we can do a
@@ -1037,22 +1232,27 @@ export abstract class QueryBuilder<Entity> {
                 // the unique primary keys.
                 // This handles the situation where someone passes the model & we don't need to make
                 // a HUGE where.
-                const primaryColumns = relation.inverseEntityMetadata.primaryColumns;
-                const hasAllPrimaryKeys = primaryColumns.length > 0 && primaryColumns.every(
-                    column => column.getEntityValue(entity[key], false)
-                );
+                const primaryColumns =
+                    relation.inverseEntityMetadata.primaryColumns;
+                const hasAllPrimaryKeys =
+                    primaryColumns.length > 0 &&
+                    primaryColumns.every((column) =>
+                        column.getEntityValue(entity[key], false)
+                    );
 
                 if (hasAllPrimaryKeys) {
                     const subPaths = primaryColumns.map(
-                        column => `${path}.${column.propertyPath}`
+                        (column) => `${path}.${column.propertyPath}`
                     );
                     paths.push(...subPaths);
                     continue;
                 }
 
                 // If nothing else, just return every property that's being passed to us.
-                const subPaths = this.createPropertyPath(relation.inverseEntityMetadata, entity[key])
-                    .map(p => `${path}.${p}`);
+                const subPaths = this.createPropertyPath(
+                    relation.inverseEntityMetadata,
+                    entity[key]
+                ).map((p) => `${path}.${p}`);
                 paths.push(...subPaths);
                 continue;
             }
@@ -1065,10 +1265,14 @@ export abstract class QueryBuilder<Entity> {
 
     protected *getPredicates(where: ObjectLiteral) {
         if (this.expressionMap.mainAlias!.hasMetadata) {
-            const propertyPaths = this.createPropertyPath(this.expressionMap.mainAlias!.metadata, where);
+            const propertyPaths = this.createPropertyPath(
+                this.expressionMap.mainAlias!.metadata,
+                where
+            );
 
             for (const propertyPath of propertyPaths) {
-                const [ alias, aliasPropertyPath, columns ] = this.findColumnsForPropertyPath(propertyPath);
+                const [alias, aliasPropertyPath, columns] =
+                    this.findColumnsForPropertyPath(propertyPath);
 
                 for (const column of columns) {
                     let containedWhere = where;
@@ -1083,11 +1287,15 @@ export abstract class QueryBuilder<Entity> {
                     }
 
                     // Use the correct alias & the property path from the column
-                    const aliasPath = this.expressionMap.aliasNamePrefixingEnabled ?
-                        `${alias.name}.${column.propertyPath}` :
-                        column.propertyPath;
+                    const aliasPath = this.expressionMap
+                        .aliasNamePrefixingEnabled
+                        ? `${alias.name}.${column.propertyPath}`
+                        : column.propertyPath;
 
-                    const parameterValue = column.getEntityValue(containedWhere, true);
+                    const parameterValue = column.getEntityValue(
+                        containedWhere,
+                        true
+                    );
 
                     yield [aliasPath, parameterValue];
                 }
@@ -1095,14 +1303,19 @@ export abstract class QueryBuilder<Entity> {
         } else {
             for (const key of Object.keys(where)) {
                 const parameterValue = where[key];
-                const aliasPath = this.expressionMap.aliasNamePrefixingEnabled ? `${this.alias}.${key}` : key;
+                const aliasPath = this.expressionMap.aliasNamePrefixingEnabled
+                    ? `${this.alias}.${key}`
+                    : key;
 
                 yield [aliasPath, parameterValue];
             }
         }
     }
 
-    protected getWherePredicateCondition(aliasPath: string, parameterValue: any): WhereClauseCondition {
+    protected getWherePredicateCondition(
+        aliasPath: string,
+        parameterValue: any
+    ): WhereClauseCondition {
         if (parameterValue instanceof FindOperator) {
             let parameters: any[] = [];
             if (parameterValue.useParameter) {
@@ -1123,55 +1336,52 @@ export abstract class QueryBuilder<Entity> {
                 } else {
                     return {
                         operator: "equal",
-                        parameters: [
-                            aliasPath,
-                            parameterValue.value,
-                        ]
+                        parameters: [aliasPath, parameterValue.value],
                     };
                 }
             } else if (parameterValue.type === "not") {
                 if (parameterValue.child) {
                     return {
                         operator: parameterValue.type,
-                        condition: this.getWherePredicateCondition(aliasPath, parameterValue.child),
+                        condition: this.getWherePredicateCondition(
+                            aliasPath,
+                            parameterValue.child
+                        ),
                     };
                 } else {
                     return {
                         operator: "notEqual",
-                        parameters: [
-                            aliasPath,
-                            ...parameters,
-                        ]
+                        parameters: [aliasPath, ...parameters],
                     };
                 }
             } else {
                 return {
                     operator: parameterValue.type,
-                    parameters: [
-                        aliasPath,
-                        ...parameters,
-                    ]
+                    parameters: [aliasPath, ...parameters],
                 };
             }
         } else if (parameterValue === null) {
             return {
                 operator: "isNull",
-                parameters: [
-                    aliasPath,
-                ]
+                parameters: [aliasPath],
             };
         } else {
             return {
                 operator: "equal",
-                parameters: [
-                    aliasPath,
-                    this.createParameter(parameterValue),
-                ]
+                parameters: [aliasPath, this.createParameter(parameterValue)],
             };
         }
     }
 
-    protected getWhereCondition(where: string|((qb: this) => string)|Brackets|NotBrackets|ObjectLiteral|ObjectLiteral[]): WhereClauseCondition {
+    protected getWhereCondition(
+        where:
+            | string
+            | ((qb: this) => string)
+            | Brackets
+            | NotBrackets
+            | ObjectLiteral
+            | ObjectLiteral[]
+    ): WhereClauseCondition {
         if (typeof where === "string") {
             return where;
         }
@@ -1181,10 +1391,14 @@ export abstract class QueryBuilder<Entity> {
 
             whereQueryBuilder.parentQueryBuilder = this;
 
-            whereQueryBuilder.expressionMap.mainAlias = this.expressionMap.mainAlias;
-            whereQueryBuilder.expressionMap.aliasNamePrefixingEnabled = this.expressionMap.aliasNamePrefixingEnabled;
-            whereQueryBuilder.expressionMap.parameters = this.expressionMap.parameters;
-            whereQueryBuilder.expressionMap.nativeParameters = this.expressionMap.nativeParameters;
+            whereQueryBuilder.expressionMap.mainAlias =
+                this.expressionMap.mainAlias;
+            whereQueryBuilder.expressionMap.aliasNamePrefixingEnabled =
+                this.expressionMap.aliasNamePrefixingEnabled;
+            whereQueryBuilder.expressionMap.parameters =
+                this.expressionMap.parameters;
+            whereQueryBuilder.expressionMap.nativeParameters =
+                this.expressionMap.nativeParameters;
 
             whereQueryBuilder.expressionMap.wheres = [];
 
@@ -1192,7 +1406,7 @@ export abstract class QueryBuilder<Entity> {
 
             return {
                 operator: where instanceof NotBrackets ? "not" : "brackets",
-                condition: whereQueryBuilder.expressionMap.wheres
+                condition: whereQueryBuilder.expressionMap.wheres,
             };
         }
 
@@ -1207,15 +1421,19 @@ export abstract class QueryBuilder<Entity> {
             const conditions: WhereClauseCondition = [];
 
             // Filter the conditions and set up the parameter values
-            for (const [aliasPath, parameterValue] of this.getPredicates(where)) {
+            for (const [aliasPath, parameterValue] of this.getPredicates(
+                where
+            )) {
                 conditions.push({
                     type: "and",
-                    condition: this.getWherePredicateCondition(aliasPath, parameterValue),
+                    condition: this.getWherePredicateCondition(
+                        aliasPath,
+                        parameterValue
+                    ),
                 });
             }
 
             clauses.push({ type: "or", condition: conditions });
-
         }
 
         if (clauses.length === 1) {
@@ -1231,5 +1449,4 @@ export abstract class QueryBuilder<Entity> {
     protected obtainQueryRunner() {
         return this.queryRunner || this.connection.createQueryRunner();
     }
-
 }
